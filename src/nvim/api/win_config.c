@@ -16,7 +16,7 @@
 #include "nvim/drawscreen.h"
 #include "nvim/extmark_defs.h"
 #include "nvim/globals.h"
-#include "nvim/grid_defs.h"
+#include "nvim/grid.h"
 #include "nvim/highlight_group.h"
 #include "nvim/macros.h"
 #include "nvim/mbyte.h"
@@ -163,6 +163,8 @@
 ///   - noautocmd: If true then no buffer-related autocommand events such as
 ///                  |BufEnter|, |BufLeave| or |BufWinEnter| may fire from
 ///                  calling this function.
+///   - fixed: If true when anchor is NW or SW, the float window
+///            would be kept fixed even if the window would be truncated.
 ///
 /// @param[out] err Error details, if any
 ///
@@ -195,6 +197,9 @@ Window nvim_open_win(Buffer buffer, Boolean enter, Dict(float_config) *config, E
   if (win_valid(wp) && buffer > 0) {
     Boolean noautocmd = !enter || fconfig.noautocmd;
     win_set_buf(wp, buf, noautocmd, err);
+    if (!fconfig.noautocmd) {
+      apply_autocmds(EVENT_WINNEW, NULL, NULL, false, buf);
+    }
   }
   if (!win_valid(wp)) {
     api_set_error(err, kErrorTypeException, "Window was closed immediately");
@@ -254,34 +259,28 @@ void nvim_win_set_config(Window window, Dict(float_config) *config, Error *err)
 Dictionary config_put_bordertext(Dictionary config, FloatConfig *fconfig,
                                  BorderTextType bordertext_type)
 {
-  VirtText chunks;
+  VirtText vt;
   AlignTextPos align;
   char *field_name;
   char *field_pos_name;
   switch (bordertext_type) {
   case kBorderTextTitle:
-    chunks = fconfig->title_chunks;
+    vt = fconfig->title_chunks;
     align = fconfig->title_pos;
     field_name = "title";
     field_pos_name = "title_pos";
     break;
   case kBorderTextFooter:
-    chunks = fconfig->footer_chunks;
+    vt = fconfig->footer_chunks;
     align = fconfig->footer_pos;
     field_name = "footer";
     field_pos_name = "footer_pos";
     break;
+  default:
+    abort();
   }
 
-  Array bordertext = ARRAY_DICT_INIT;
-  for (size_t i = 0; i < chunks.size; i++) {
-    Array tuple = ARRAY_DICT_INIT;
-    ADD(tuple, CSTR_TO_OBJ(chunks.items[i].text));
-    if (chunks.items[i].hl_id > 0) {
-      ADD(tuple, CSTR_TO_OBJ(syn_id2name(chunks.items[i].hl_id)));
-    }
-    ADD(bordertext, ARRAY_OBJ(tuple));
-  }
+  Array bordertext = virt_text_to_array(vt, true);
   PUT(config, field_name, ARRAY_OBJ(bordertext));
 
   char *pos;
@@ -348,7 +347,7 @@ Dictionary nvim_win_get_config(Window window, Error *err)
       for (size_t i = 0; i < 8; i++) {
         Array tuple = ARRAY_DICT_INIT;
 
-        String s = cstrn_to_string(config->border_chars[i], sizeof(schar_T));
+        String s = cstrn_to_string(config->border_chars[i], MAX_SCHAR_SIZE);
 
         int hi_id = config->border_hl_ids[i];
         char *hi_name = syn_id2name(hi_id);
@@ -520,7 +519,7 @@ static void parse_border_style(Object style,  FloatConfig *fconfig, Error *err)
 {
   struct {
     const char *name;
-    schar_T chars[8];
+    char chars[8][MAX_SCHAR_SIZE];
     bool shadow_color;
   } defaults[] = {
     { "double", { "╔", "═", "╗", "║", "╝", "═", "╚", "║" }, false },
@@ -531,7 +530,7 @@ static void parse_border_style(Object style,  FloatConfig *fconfig, Error *err)
     { NULL, { { NUL } }, false },
   };
 
-  schar_T *chars = fconfig->border_chars;
+  char (*chars)[MAX_SCHAR_SIZE] = fconfig->border_chars;
   int *hl_ids = fconfig->border_hl_ids;
 
   fconfig->border = true;
@@ -843,6 +842,10 @@ static bool parse_float_config(Dict(float_config) *config, FloatConfig *fconfig,
       return false;
     }
     fconfig->noautocmd = config->noautocmd;
+  }
+
+  if (HAS_KEY_X(config, fixed)) {
+    fconfig->fixed = config->fixed;
   }
 
   return true;

@@ -153,6 +153,24 @@ void clear_virttext(VirtText *text)
   *text = (VirtText)KV_INITIAL_VALUE;
 }
 
+/// Get the next chunk of a virtual text item.
+///
+/// @param[in]     vt    The virtual text item
+/// @param[in,out] pos   Position in the virtual text item
+/// @param[in,out] attr  Highlight attribute
+///
+/// @return  The text of the chunk, or NULL if there are no more chunks
+char *next_virt_text_chunk(VirtText vt, size_t *pos, int *attr)
+{
+  char *text = NULL;
+  for (; text == NULL && *pos < kv_size(vt); (*pos)++) {
+    text = kv_A(vt, *pos).text;
+    int hl_id = kv_A(vt, *pos).hl_id;
+    *attr = hl_combine_attr(*attr, hl_id > 0 ? syn_id2attr(hl_id) : 0);
+  }
+  return text;
+}
+
 Decoration *decor_find_virttext(buf_T *buf, int row, uint64_t ns_id)
 {
   MarkTreeIter itr[1] = { 0 };
@@ -254,7 +272,7 @@ static void decor_add(DecorState *state, int start_row, int start_col, int end_r
 
   DecorRange range = { start_row, start_col, end_row, end_col,
                        *decor, attr_id,
-                       kv_size(decor->virt_text) && owned, -1, ns_id, mark_id };
+                       kv_size(decor->virt_text) && owned, -10, ns_id, mark_id };
 
   kv_pushp(state->active);
   size_t index;
@@ -268,10 +286,10 @@ static void decor_add(DecorState *state, int start_row, int start_col, int end_r
   kv_A(state->active, index) = range;
 }
 
-/// Initialize the draw_col of a newly-added non-inline virtual text item.
+/// Initialize the draw_col of a newly-added virtual text item.
 static void decor_init_draw_col(int win_col, bool hidden, DecorRange *item)
 {
-  if (win_col < 0) {
+  if (win_col < 0 && item->decor.virt_text_pos != kVTInline) {
     item->draw_col = win_col;
   } else if (item->decor.virt_text_pos == kVTOverlay) {
     item->draw_col = (item->decor.virt_text_hide && hidden) ? INT_MIN : win_col;
@@ -371,8 +389,7 @@ next_mark:
       spell = item.decor.spell;
     }
     if (item.start_row == state->row && item.start_col <= col
-        && decor_virt_pos(&item.decor) && item.draw_col == -1
-        && item.decor.virt_text_pos != kVTInline) {
+        && decor_virt_pos(&item.decor) && item.draw_col == -10) {
       decor_init_draw_col(win_col, hidden, &item);
     }
     if (keep) {

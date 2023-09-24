@@ -230,6 +230,11 @@ if(WIN32)
   endif()
 elseif(APPLE)
   target_link_libraries(nvim PRIVATE "-framework CoreServices")
+
+  # Actually export symbols - symbols may not be visible even though
+  # ENABLE_EXPORTS is set to true. See
+  # https://github.com/neovim/neovim/issues/25295
+  set_target_properties(nvim PROPERTIES LINK_FLAGS "-Wl,-export_dynamic")
 endif()
 
 if(UNIX)
@@ -879,7 +884,13 @@ set(VIMDOC_FILES
 )
 
 glob_wrapper(API_SOURCES ${PROJECT_SOURCE_DIR}/src/nvim/api/*.c)
-glob_wrapper(LUA_SOURCES ${NVIM_RUNTIME_DIR}/lua/vim/*.lua)
+
+glob_wrapper(LUA_SOURCES
+  ${NVIM_RUNTIME_DIR}/lua/vim/*.lua
+  ${NVIM_RUNTIME_DIR}/lua/vim/filetype/*.lua
+  ${NVIM_RUNTIME_DIR}/lua/vim/lsp/*.lua
+  ${NVIM_RUNTIME_DIR}/lua/vim/treesitter/*.lua
+)
 
 add_custom_command(
   OUTPUT ${VIMDOC_FILES}

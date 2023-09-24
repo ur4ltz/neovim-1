@@ -1849,74 +1849,66 @@ static void mouse_check_grid(colnr_T *vcolp, int *flagsp)
   int click_grid = mouse_grid;
   int click_row = mouse_row;
   int click_col = mouse_col;
-  int mouse_char = ' ';
-  int max_row = Rows;
-  int max_col = Columns;
-  bool multigrid = ui_has(kUIMultigrid);
-  colnr_T col_from_screen = -1;
 
+  // XXX: this doesn't change click_grid if it is 1, even with multigrid
   win_T *wp = mouse_find_win(&click_grid, &click_row, &click_col);
-  if (wp && multigrid) {
-    max_row = wp->w_grid_alloc.rows;
-    max_col = wp->w_grid_alloc.cols;
+  // Only use vcols[] after the window was redrawn.  Mainly matters
+  // for tests, a user would not click before redrawing.
+  if (wp == NULL || wp->w_redr_type != 0) {
+    return;
+  }
+  ScreenGrid *gp = &wp->w_grid;
+  int start_row = 0;
+  int start_col = 0;
+  grid_adjust(&gp, &start_row, &start_col);
+  if (gp->handle != click_grid || gp->chars == NULL) {
+    return;
+  }
+  click_row += start_row;
+  click_col += start_col;
+  if (click_row < 0 || click_row >= gp->rows
+      || click_col < 0 || click_col >= gp->cols) {
+    return;
   }
 
-  if (wp && mouse_row >= 0 && mouse_row < max_row
-      && mouse_col >= 0 && mouse_col < max_col) {
-    ScreenGrid *gp = multigrid ? &wp->w_grid_alloc : &default_grid;
-    int fdc = win_fdccol_count(wp);
-    int use_row = multigrid && mouse_grid == 0 ? click_row : mouse_row;
-    int use_col = multigrid && mouse_grid == 0 ? click_col : mouse_col;
+  const size_t off = gp->line_offset[click_row] + (size_t)click_col;
+  colnr_T col_from_screen = gp->vcols[off];
 
-    if (gp->chars != NULL) {
-      const size_t off = gp->line_offset[use_row] + (size_t)use_col;
-
-      // Only use vcols[] after the window was redrawn.  Mainly matters
-      // for tests, a user would not click before redrawing.
-      if (wp->w_redr_type == 0) {
-        col_from_screen = gp->vcols[off];
-      }
-
-      if (col_from_screen == MAXCOL) {
-        // When clicking after end of line, still need to set correct curswant
-        size_t off_l = gp->line_offset[use_row];
-        if (gp->vcols[off_l] < MAXCOL) {
-          // Binary search to find last char in line
-          size_t off_r = off;
-          while (off_l < off_r) {
-            size_t off_m = (off_l + off_r + 1) / 2;
-            if (gp->vcols[off_m] < MAXCOL) {
-              off_l = off_m;
-            } else {
-              off_r = off_m - 1;
-            }
-          }
-          *vcolp = gp->vcols[off_r] + (int)(off - off_r);
+  if (col_from_screen == MAXCOL) {
+    // When clicking after end of line, still need to set correct curswant
+    size_t off_l = gp->line_offset[click_row] + (size_t)start_col;
+    if (gp->vcols[off_l] < MAXCOL) {
+      // Binary search to find last char in line
+      size_t off_r = off;
+      while (off_l < off_r) {
+        size_t off_m = (off_l + off_r + 1) / 2;
+        if (gp->vcols[off_m] < MAXCOL) {
+          off_l = off_m;
         } else {
-          // Shouldn't normally happen
-          *vcolp = MAXCOL;
+          off_r = off_m - 1;
         }
-      } else if (col_from_screen >= 0) {
-        // Use the virtual column from vcols[], it is accurate also after
-        // concealed characters.
-        *vcolp = col_from_screen;
       }
-
-      // Remember the character under the mouse, might be one of foldclose or
-      // foldopen fillchars in the fold column.
-      mouse_char = utf_ptr2char((char *)gp->chars[off]);
+      colnr_T eol_vcol = gp->vcols[off_r];
+      assert(eol_vcol < MAXCOL);
+      if (eol_vcol < 0) {
+        // Empty line or whole line before w_leftcol,
+        // with columns before buffer text
+        eol_vcol = wp->w_leftcol - 1;
+      }
+      *vcolp = eol_vcol + (int)(off - off_r);
+    } else {
+      // Empty line or whole line before w_leftcol
+      *vcolp = click_col - start_col + wp->w_leftcol;
     }
-
-    // Check for position outside of the fold column.
-    if (wp->w_p_rl ? click_col < wp->w_width_inner - fdc :
-        click_col >= fdc + (cmdwin_type == 0 ? 0 : 1)) {
-      mouse_char = ' ';
-    }
+  } else if (col_from_screen >= 0) {
+    // Use the virtual column from vcols[], it is accurate also after
+    // concealed characters.
+    *vcolp = col_from_screen;
   }
 
-  if (wp && mouse_char == wp->w_p_fcs_chars.foldclosed) {
+  if (col_from_screen == -2) {
     *flagsp |= MOUSE_FOLD_OPEN;
-  } else if (mouse_char != ' ') {
+  } else if (col_from_screen == -3) {
     *flagsp |= MOUSE_FOLD_CLOSE;
   }
 }

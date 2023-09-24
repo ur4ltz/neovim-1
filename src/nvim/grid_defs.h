@@ -9,9 +9,13 @@
 #include "nvim/types.h"
 
 #define MAX_MCO  6  // fixed value for 'maxcombine'
+// Includes final NUL. at least 4*(MAX_MCO+1)+1
+#define MAX_SCHAR_SIZE 32
 
-// The characters and attributes drawn on grids.
-typedef char schar_T[(MAX_MCO + 1) * 4 + 1];
+// if data[0] is 0xFF, then data[1..4] is a 24-bit index (in machine endianess)
+// otherwise it must be a UTF-8 string of length maximum 4 (no NUL when n=4)
+
+typedef uint32_t schar_T;
 typedef int sattr_T;
 
 enum {
@@ -40,15 +44,14 @@ enum {
 /// attrs[] contains the highlighting attribute for each cell.
 ///
 /// vcols[] contains the virtual columns in the line. -1 means not available
-/// (below last line), MAXCOL means after the end of the line.
+/// or before buffer text, MAXCOL means after the end of the line.
+/// -2 or -3 means in fold column and a mouse click should:
+///  -2: open a fold
+///  -3: close a fold
 ///
 /// line_offset[n] is the offset from chars[], attrs[] and vcols[] for the start
 /// of line 'n'. These offsets are in general not linear, as full screen scrolling
 /// is implemented by rotating the offsets in the line_offset array.
-///
-/// line_wraps[] is an array of boolean flags indicating if the screen line
-/// wraps to the next line. It can only be true if a window occupies the entire
-/// screen width.
 typedef struct ScreenGrid ScreenGrid;
 struct ScreenGrid {
   handle_T handle;
@@ -57,7 +60,6 @@ struct ScreenGrid {
   sattr_T *attrs;
   colnr_T *vcols;
   size_t *line_offset;
-  char *line_wraps;
 
   // last column that was drawn (not cleared with the default background).
   // only used when "throttled" is set. Not allocated by grid_alloc!
@@ -113,7 +115,7 @@ struct ScreenGrid {
   bool comp_disabled;
 };
 
-#define SCREEN_GRID_INIT { 0, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, false, \
+#define SCREEN_GRID_INIT { 0, NULL, NULL, NULL, NULL, NULL, 0, 0, false, \
                            false, 0, 0, NULL, false, true, 0, \
                            0, 0, 0, 0, 0,  false }
 

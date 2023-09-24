@@ -2181,8 +2181,8 @@ vim.bo.ft = vim.bo.filetype
 --- and the value of that item:
 ---
 ---   item		default		Used for ~
----   stl		' ' or '^'	statusline of the current window
----   stlnc		' ' or '='	statusline of the non-current windows
+---   stl		' '		statusline of the current window
+---   stlnc		' '		statusline of the non-current windows
 ---   wbr		' '		window bar
 ---   horiz		'─' or '-'	horizontal separators `:split`
 ---   horizup	'┴' or '-'	upwards facing horizontal separator
@@ -2201,9 +2201,7 @@ vim.bo.ft = vim.bo.filetype
 ---   eob		'~'		empty lines at the end of a buffer
 ---   lastline	'@'		'display' contains lastline/truncate
 ---
---- Any one that is omitted will fall back to the default.  For "stl" and
---- "stlnc" the space will be used when there is highlighting, '^' or '='
---- otherwise.
+--- Any one that is omitted will fall back to the default.
 ---
 --- Note that "horiz", "horizup", "horizdown", "vertleft", "vertright" and
 --- "verthoriz" are only used when 'laststatus' is 3, since only vertical
@@ -3088,9 +3086,8 @@ vim.go.icon = vim.o.icon
 vim.o.iconstring = ""
 vim.go.iconstring = vim.o.iconstring
 
---- Ignore case in search patterns.  Also used when searching in the tags
---- file.
---- Also see 'smartcase' and 'tagcase'.
+--- Ignore case in search patterns, completion, and when searching the tags file.
+--- See also 'smartcase' and 'tagcase'.
 --- Can be overruled by using "\c" or "\C" in the pattern, see
 --- `/ignorecase`.
 ---
@@ -3486,12 +3483,11 @@ vim.go.joinspaces = vim.o.joinspaces
 vim.go.js = vim.go.joinspaces
 
 --- List of words that change the behavior of the `jumplist`.
----   stack         Make the jumplist behave like the tagstack or like a
----                 web browser.  Relative location of entries in the
---- 		jumplist is preserved at the cost of discarding
---- 		subsequent entries when navigating backwards in the
---- 		jumplist and then jumping to a location.
---- 		`jumplist-stack`
+---   stack         Make the jumplist behave like the tagstack.
+--- 		Relative location of entries in the jumplist is
+--- 		preserved at the cost of discarding subsequent entries
+--- 		when navigating backwards in the jumplist and then
+--- 		jumping to a location.  `jumplist-stack`
 ---
 ---   view          When moving through the jumplist, `changelist|,
 --- 		|alternate-file` or using `mark-motions` try to
@@ -5670,7 +5666,6 @@ vim.bo.sw = vim.bo.shiftwidth
 --- messages, for example  with CTRL-G, and to avoid some other messages.
 --- It is a list of flags:
 ---  flag	meaning when present	~
----   f	use "(3 of 5)" instead of "(file 3 of 5)"		*shm-f*
 ---   i	use "[noeol]" instead of "[Incomplete last line]"	*shm-i*
 ---   l	use "999L, 888B" instead of "999 lines, 888 bytes"	*shm-l*
 ---   m	use "[+]" instead of "[Modified]"			*shm-m*
