@@ -105,7 +105,7 @@ void filemess(buf_T *buf, char *name, char *s, int attr)
   // For further ones overwrite the previous one, reset msg_scroll before
   // calling filemess().
   msg_scroll_save = msg_scroll;
-  if (shortmess(SHM_OVERALL) && !exiting && p_verbose == 0) {
+  if (shortmess(SHM_OVERALL) && !msg_listdo_overwrite && !exiting && p_verbose == 0) {
     msg_scroll = false;
   }
   if (!msg_scroll) {    // wait a bit when overwriting an error msg
@@ -316,7 +316,7 @@ int readfile(char *fname, char *sfname, linenr_T from, linenr_T lines_to_skip,
     }
   }
 
-  if ((shortmess(SHM_OVER) || curbuf->b_help) && p_verbose == 0) {
+  if (((shortmess(SHM_OVER) && !msg_listdo_overwrite) || curbuf->b_help) && p_verbose == 0) {
     msg_scroll = false;         // overwrite previous file message
   } else {
     msg_scroll = true;          // don't overwrite previous file message
@@ -459,7 +459,7 @@ int readfile(char *fname, char *sfname, linenr_T from, linenr_T lines_to_skip,
       }
       if (!silent) {
         if (dir_of_file_exists(fname)) {
-          filemess(curbuf, sfname, new_file_message(), 0);
+          filemess(curbuf, sfname, _("[New]"), 0);
         } else {
           filemess(curbuf, sfname, _("[New DIRECTORY]"), 0);
         }
@@ -1718,7 +1718,7 @@ failed:
         c = true;
       }
       if (read_no_eol_lnum) {
-        msg_add_eol();
+        xstrlcat(IObuff, _("[noeol]"), IOSIZE);
         c = true;
       }
       if (ff_error == EOL_DOS) {
@@ -2064,11 +2064,6 @@ static void check_marks_read(void)
   curbuf->b_marks_read = true;
 }
 
-char *new_file_message(void)
-{
-  return shortmess(SHM_NEW) ? _("[New]") : _("[New File]");
-}
-
 /// Set the name of the current buffer.  Use when the buffer doesn't have a
 /// name and a ":r" or ":w" command with a file name is used.
 int set_rw_fname(char *fname, char *sfname)
@@ -2142,17 +2137,17 @@ bool msg_add_fileformat(int eol_type)
 {
 #ifndef USE_CRNL
   if (eol_type == EOL_DOS) {
-    xstrlcat(IObuff, shortmess(SHM_TEXT) ? _("[dos]") : _("[dos format]"), IOSIZE);
+    xstrlcat(IObuff, _("[dos]"), IOSIZE);
     return true;
   }
 #endif
   if (eol_type == EOL_MAC) {
-    xstrlcat(IObuff, shortmess(SHM_TEXT) ? _("[mac]") : _("[mac format]"), IOSIZE);
+    xstrlcat(IObuff, _("[mac]"), IOSIZE);
     return true;
   }
 #ifdef USE_CRNL
   if (eol_type == EOL_UNIX) {
-    xstrlcat(IObuff, shortmess(SHM_TEXT) ? _("[unix]") : _("[unix format]"), IOSIZE);
+    xstrlcat(IObuff, _("[unix]"), IOSIZE);
     return true;
   }
 #endif
@@ -2179,12 +2174,6 @@ void msg_add_lines(int insert_space, long lnum, off_T nchars)
                  NGETTEXT("%" PRId64 " byte", "%" PRId64 " bytes", nchars),
                  (int64_t)nchars);
   }
-}
-
-/// Append message for missing line separator to IObuff.
-void msg_add_eol(void)
-{
-  xstrlcat(IObuff, shortmess(SHM_LAST) ? _("[noeol]") : _("[Incomplete last line]"), IOSIZE);
 }
 
 bool time_differs(const FileInfo *file_info, long mtime, long mtime_ns) FUNC_ATTR_CONST
@@ -3290,11 +3279,17 @@ static void vim_mktempdir(void)
   char tmp[TEMP_FILE_PATH_MAXLEN];
   char path[TEMP_FILE_PATH_MAXLEN];
   char user[40] = { 0 };
+  char appname[40] = { 0 };
 
   (void)os_get_username(user, sizeof(user));
   // Usernames may contain slashes! #19240
   memchrsub(user, '/', '_', sizeof(user));
   memchrsub(user, '\\', '_', sizeof(user));
+
+  // Appname may be a relative path, replace slashes to make it name-like.
+  xstrlcpy(appname, get_appname(), sizeof(appname));
+  memchrsub(appname, '/', '%', sizeof(appname));
+  memchrsub(appname, '\\', '%', sizeof(appname));
 
   // Make sure the umask doesn't remove the executable bit.
   // "repl" has been reported to use "0177".
@@ -3309,7 +3304,6 @@ static void vim_mktempdir(void)
     // "/tmp/" exists, now try to create "/tmp/nvim.<user>/".
     add_pathsep(tmp);
 
-    const char *appname = get_appname();
     xstrlcat(tmp, appname, sizeof(tmp));
     xstrlcat(tmp, ".", sizeof(tmp));
     xstrlcat(tmp, user, sizeof(tmp));

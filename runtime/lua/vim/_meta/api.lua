@@ -425,6 +425,7 @@ function vim.api.nvim_buf_get_number(buffer) end
 --- @return integer
 function vim.api.nvim_buf_get_offset(buffer, index) end
 
+--- @deprecated
 --- @param buffer integer
 --- @param name string
 --- @return any
@@ -632,6 +633,7 @@ function vim.api.nvim_buf_set_mark(buffer, name, line, col, opts) end
 --- @param name string Buffer name
 function vim.api.nvim_buf_set_name(buffer, name) end
 
+--- @deprecated
 --- @param buffer integer
 --- @param name string
 --- @param value any
@@ -1283,10 +1285,12 @@ function vim.api.nvim_get_mode() end
 --- @return table<string,any>
 function vim.api.nvim_get_namespaces() end
 
+--- @deprecated
 --- @param name string
 --- @return any
 function vim.api.nvim_get_option(name) end
 
+--- @deprecated
 --- @param name string
 --- @return table<string,any>
 function vim.api.nvim_get_option_info(name) end
@@ -1862,6 +1866,8 @@ function vim.api.nvim_set_decoration_provider(ns_id, opts) end
 ---              • cterm: cterm attribute map, like `highlight-args`. If not
 ---                set, cterm attributes will match those from the attribute
 ---                map documented above.
+---              • force: if true force update the highlight group when it
+---                exists.
 function vim.api.nvim_set_hl(ns_id, name, val) end
 
 --- Set active namespace for highlights defined with `nvim_set_hl()`. This can
@@ -1912,6 +1918,7 @@ function vim.api.nvim_set_hl_ns_fast(ns_id) end
 ---               "callback" is equivalent to returning an empty string.
 function vim.api.nvim_set_keymap(mode, lhs, rhs, opts) end
 
+--- @deprecated
 --- @param name string
 --- @param value any
 function vim.api.nvim_set_option(name, value) end
@@ -2115,6 +2122,7 @@ function vim.api.nvim_win_get_height(window) end
 --- @return integer
 function vim.api.nvim_win_get_number(window) end
 
+--- @deprecated
 --- @param window integer
 --- @param name string
 --- @return any
@@ -2197,6 +2205,7 @@ function vim.api.nvim_win_set_height(window, height) end
 --- @param ns_id integer the namespace to use
 function vim.api.nvim_win_set_hl_ns(window, ns_id) end
 
+--- @deprecated
 --- @param window integer
 --- @param name string
 --- @param value any

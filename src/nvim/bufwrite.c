@@ -1766,11 +1766,11 @@ restore_backup:
       xstrlcat(IObuff, _("[Device]"), IOSIZE);
       insert_space = true;
     } else if (newfile) {
-      xstrlcat(IObuff, new_file_message(), IOSIZE);
+      xstrlcat(IObuff, _("[New]"), IOSIZE);
       insert_space = true;
     }
     if (no_eol) {
-      msg_add_eol();
+      xstrlcat(IObuff, _("[noeol]"), IOSIZE);
       insert_space = true;
     }
     // may add [unix/dos/mac]
@@ -1797,8 +1797,8 @@ restore_backup:
     unchanged(buf, true, false);
     const varnumber_T changedtick = buf_get_changedtick(buf);
     if (buf->b_last_changedtick + 1 == changedtick) {
-      // b:changedtick may be incremented in unchanged() but that
-      // should not trigger a TextChanged event.
+      // b:changedtick may be incremented in unchanged() but that should not
+      // trigger a TextChanged event.
       buf->b_last_changedtick = changedtick;
     }
     u_unchanged(buf);
