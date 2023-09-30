@@ -2,15 +2,17 @@
 // it. PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "klib/kvec.h"
 #include "nvim/api/extmark.h"
+#include "nvim/api/keysets.h"
 #include "nvim/api/private/defs.h"
-#include "nvim/api/private/dispatch.h"
 #include "nvim/api/private/helpers.h"
 #include "nvim/api/win_config.h"
 #include "nvim/ascii.h"
+#include "nvim/autocmd.h"
 #include "nvim/buffer_defs.h"
 #include "nvim/decoration.h"
 #include "nvim/drawscreen.h"
@@ -165,6 +167,7 @@
 ///                  calling this function.
 ///   - fixed: If true when anchor is NW or SW, the float window
 ///            would be kept fixed even if the window would be truncated.
+///   - hide: If true the floating window will be hidden.
 ///
 /// @param[out] err Error details, if any
 ///
@@ -323,6 +326,7 @@ Dictionary nvim_win_get_config(Window window, Error *err)
 
   PUT(rv, "focusable", BOOLEAN_OBJ(config->focusable));
   PUT(rv, "external", BOOLEAN_OBJ(config->external));
+  PUT(rv, "hide", BOOLEAN_OBJ(config->hide));
 
   if (wp->w_floating) {
     PUT(rv, "width", INTEGER_OBJ(config->width));
@@ -846,6 +850,10 @@ static bool parse_float_config(Dict(float_config) *config, FloatConfig *fconfig,
 
   if (HAS_KEY_X(config, fixed)) {
     fconfig->fixed = config->fixed;
+  }
+
+  if (HAS_KEY_X(config, hide)) {
+    fconfig->hide = config->hide;
   }
 
   return true;

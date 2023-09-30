@@ -65,6 +65,9 @@ The following changes may require adaptations in user config or plugins.
   now requires an explicit range argument to be passed. If injections are
   required, provide an explicit range via `parser:parse({ start_row, end_row })`.
 
+• Float window support hide and show by setting `hide` on `nvim_open_win` and
+  `nvim_win_set_config`.
+
 ==============================================================================
 NEW FEATURES                                                    *news-features*
 
@@ -281,6 +284,8 @@ release.
   - |vim.lsp.get_active_clients()|		Use |vim.lsp.get_clients()| instead.
   - |vim.lsp.for_each_buffer_client()|		Use |vim.lsp.get_clients()| instead.
   - |vim.lsp.util.trim_empty_lines()|		Use |vim.split()| with `trimempty` instead.
+  - |vim.lsp.util.try_trim_markdown_code_blocks()|
+  - |vim.lsp.util.set_lines()|
 
 • `vim.loop` has been renamed to `vim.uv`.
 
