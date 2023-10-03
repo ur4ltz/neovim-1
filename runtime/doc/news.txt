@@ -68,6 +68,10 @@ The following changes may require adaptations in user config or plugins.
 • Float window support hide and show by setting `hide` on `nvim_open_win` and
   `nvim_win_set_config`.
 
+• |vim.lsp.util.parse_snippet()| will now strictly follow the snippet grammar
+  defined by LSP, and hence previously parsed snippets might now be considered
+  invalid input.
+
 ==============================================================================
 NEW FEATURES                                                    *news-features*
 
@@ -104,6 +108,8 @@ The following new APIs and features were added.
   by a range of text in a given window.
 
 • |nvim_set_keymap()| and |nvim_del_keymap()| now support abbreviations.
+
+• Better cmdline completion for string option value. |complete-set-option|
 
 • Builtin TUI can now recognize "super" (|<D-|) and "meta" (|<T-|) modifiers in a
   terminal emulator that supports |tui-csiu|.
@@ -143,6 +149,8 @@ The following new APIs and features were added.
   • Added `vim.treesitter.query.edit()`, for live editing of treesitter
     queries.
   • Improved error messages for query parsing.
+  • Added |vim.treesitter.foldtext()| to apply treesitter highlighting to
+    foldtext.
 
 • |vim.ui.open()| opens URIs using the system default handler (macOS `open`,
   Windows `explorer`, Linux `xdg-open`, etc.)

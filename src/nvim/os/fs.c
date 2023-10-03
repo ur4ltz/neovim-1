@@ -31,7 +31,6 @@
 
 #ifdef HAVE_XATTR
 # include <sys/xattr.h>
-# define XATTR_VAL_LEN 1024
 #endif
 
 #include "nvim/ascii.h"
@@ -64,12 +63,10 @@
 #ifdef HAVE_XATTR
 static const char e_xattr_erange[]
   = N_("E1506: Buffer too small to copy xattr value or key");
-static const char e_xattr_enotsup[]
-  = N_("E1507: Extended attributes are not supported by the filesystem");
 static const char e_xattr_e2big[]
-  = N_("E1508: size of the extended attribute value is larger than the maximum size allowed");
+  = N_("E1508: Size of the extended attribute value is larger than the maximum size allowed");
 static const char e_xattr_other[]
-  = N_("E1509: error occured when reading or writing extended attribute");
+  = N_("E1509: Error occured when reading or writing extended attribute");
 #endif
 
 struct iovec;
@@ -801,9 +798,9 @@ void os_copy_xattr(const char *from_file, const char *to_file)
         case E2BIG:
           errmsg = e_xattr_e2big;
           goto error_exit;
-        case ENOTSUP:
-          errmsg = e_xattr_enotsup;
-          goto error_exit;
+        case EACCES:
+        case EPERM:
+          break;
         case ERANGE:
           errmsg = e_xattr_erange;
           goto error_exit;
@@ -833,7 +830,7 @@ error_exit:
   xfree(val);
 
   if (errmsg != NULL) {
-    emsg(errmsg);
+    emsg(_(errmsg));
   }
 }
 #endif
