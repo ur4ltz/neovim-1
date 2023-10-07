@@ -46,7 +46,7 @@ static const char e_positional_arg_num_type_inconsistent_str_str[]
 static const char e_invalid_format_specifier_str[]
   = N_("E1505: Invalid format specifier: %s");
 static const char e_aptypes_is_null_nr_str[]
-  = "E1520: Internal error: ap_types or ap_types[idx] is NULL: %d: %s";
+  = "E1507: Internal error: ap_types or ap_types[idx] is NULL: %d: %s";
 
 static const char typename_unknown[] = N_("unknown");
 static const char typename_int[] = N_("int");
@@ -1079,7 +1079,7 @@ static int parse_fmt_types(const char ***ap_types, int *num_posarg, const char *
           any_arg = 1;
           CHECK_POS_ARG;
         }
-      } else if (ascii_isdigit((int)(*(arg = p)))) {
+      } else if (ascii_isdigit((int)(*p))) {
         // size_t could be wider than unsigned int; make sure we treat
         // argument like common implementations do
         unsigned uj = (unsigned)(*p++ - '0');
@@ -1126,7 +1126,7 @@ static int parse_fmt_types(const char ***ap_types, int *num_posarg, const char *
             any_arg = 1;
             CHECK_POS_ARG;
           }
-        } else if (ascii_isdigit((int)(*(arg = p)))) {
+        } else if (ascii_isdigit((int)(*p))) {
           // size_t could be wider than unsigned int; make sure we
           // treat argument like common implementations do
           unsigned uj = (unsigned)(*p++ - '0');
@@ -1155,7 +1155,7 @@ static int parse_fmt_types(const char ***ap_types, int *num_posarg, const char *
         p++;
         if (length_modifier == 'l' && *p == 'l') {
           // double l = long long
-          length_modifier = 'L';
+          // length_modifier = 'L';
           p++;
         }
       }
