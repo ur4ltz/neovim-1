@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "nvim/arabic.h"
 #include "nvim/ascii.h"
 #include "nvim/buffer.h"
 #include "nvim/charset.h"
@@ -128,6 +127,9 @@ typedef struct {
   int filler_lines;          ///< nr of filler lines to be drawn
   int filler_todo;           ///< nr of filler lines still to do + 1
   SignTextAttrs sattrs[SIGN_SHOW_MAX];  ///< sign attributes for the sign column
+  /// do consider wrapping in linebreak mode only after encountering
+  /// a non whitespace char
+  bool need_lbr;
 
   VirtText virt_inline;
   size_t virt_inline_i;
@@ -140,15 +142,6 @@ typedef struct {
   int skipped_cells;         ///< nr of skipped cells for virtual text
                              ///< to be added to wlv.vcol later
 } winlinevars_T;
-
-/// for line_putchar. Contains the state that needs to be remembered from
-/// putting one character to the next.
-typedef struct {
-  const char *p;
-  int prev_c;   ///< previous Arabic character
-  int prev_c1;  ///< first composing char for prev_c
-} LineState;
-#define LINE_STATE(p) { p, 0, 0 }
 
 #ifdef INCLUDE_GENERATED_DECLARATIONS
 # include "drawline.c.generated.h"
@@ -220,10 +213,10 @@ static void line_check_overwrite(schar_T *dest, int cells, int maxcells, bool rl
 
 /// Put a single char from an UTF-8 buffer into a line buffer.
 ///
-/// Handles composing chars and arabic shaping state.
-static int line_putchar(buf_T *buf, LineState *s, schar_T *dest, int maxcells, bool rl, int vcol)
+/// Handles composing chars
+static int line_putchar(buf_T *buf, const char **pp, schar_T *dest, int maxcells, bool rl, int vcol)
 {
-  const char *p = s->p;
+  const char *p = *pp;
   int cells = utf_ptr2cells(p);
   int c_len = utfc_ptr2len(p);
   int u8c, u8cc[MAX_MCO];
@@ -244,39 +237,14 @@ static int line_putchar(buf_T *buf, LineState *s, schar_T *dest, int maxcells, b
     goto done;
   } else if ((uint8_t)(*p) < 0x80 && u8cc[0] == 0) {
     dest[0] = schar_from_ascii(*p);
-    s->prev_c = u8c;
   } else {
-    if (p_arshape && !p_tbidi && ARABIC_CHAR(u8c)) {
-      // Do Arabic shaping.
-      int pc, pc1, nc;
-      int pcc[MAX_MCO];
-      int firstbyte = (uint8_t)(*p);
-
-      // The idea of what is the previous and next
-      // character depends on 'rightleft'.
-      if (rl) {
-        pc = s->prev_c;
-        pc1 = s->prev_c1;
-        nc = utf_ptr2char(p + c_len);
-        s->prev_c1 = u8cc[0];
-      } else {
-        pc = utfc_ptr2char(p + c_len, pcc);
-        nc = s->prev_c;
-        pc1 = pcc[0];
-      }
-      s->prev_c = u8c;
-
-      u8c = arabic_shape(u8c, &firstbyte, &u8cc[0], pc, pc1, nc);
-    } else {
-      s->prev_c = u8c;
-    }
     dest[0] = schar_from_cc(u8c, u8cc);
   }
   if (cells > 1) {
     dest[rl ? -1 : 1] = 0;
   }
 done:
-  s->p += c_len;
+  *pp += c_len;
   return cells;
 }
 
@@ -344,22 +312,22 @@ static void draw_virt_text(win_T *wp, buf_T *buf, int col_off, int *end_col, int
 static int draw_virt_text_item(buf_T *buf, int col, VirtText vt, HlMode hl_mode, int max_col,
                                int vcol, bool rl)
 {
-  LineState s = LINE_STATE("");
+  const char *p = "";
   int virt_attr = 0;
   size_t virt_pos = 0;
 
   while (rl ? col > max_col : col < max_col) {
-    if (*s.p == NUL) {
+    if (!*p) {
       if (virt_pos >= kv_size(vt)) {
         break;
       }
       virt_attr = 0;
-      s.p = next_virt_text_chunk(vt, &virt_pos, &virt_attr);
-      if (s.p == NULL) {
+      p = next_virt_text_chunk(vt, &virt_pos, &virt_attr);
+      if (p == NULL) {
         break;
       }
     }
-    if (*s.p == NUL) {
+    if (*p == NUL) {
       continue;
     }
     int attr;
@@ -367,14 +335,14 @@ static int draw_virt_text_item(buf_T *buf, int col, VirtText vt, HlMode hl_mode,
     if (hl_mode == kHlModeCombine) {
       attr = hl_combine_attr(linebuf_attr[col], virt_attr);
     } else if (hl_mode == kHlModeBlend) {
-      through = (*s.p == ' ');
+      through = (*p == ' ');
       attr = hl_blend_attrs(linebuf_attr[col], virt_attr, &through);
     } else {
       attr = virt_attr;
     }
     schar_T dummy[2];
     int maxcells = rl ? col - max_col : max_col - col;
-    int cells = line_putchar(buf, &s, through ? dummy : &linebuf_char[col],
+    int cells = line_putchar(buf, &p, through ? dummy : &linebuf_char[col],
                              maxcells, rl, vcol);
     // If we failed to emit a char, we still need to put a space and advance.
     if (cells < 1) {
@@ -1053,6 +1021,7 @@ static void win_line_start(win_T *wp, winlinevars_T *wlv, bool save_extra)
 {
   wlv->col = 0;
   wlv->off = 0;
+  wlv->need_lbr = false;
 
   if (wp->w_p_rl) {
     // Rightleft window: process the text in the normal direction, but put
@@ -1073,6 +1042,7 @@ static void win_line_start(win_T *wp, winlinevars_T *wlv, bool save_extra)
     wlv->saved_extra_for_extmark = wlv->extra_for_extmark;
     wlv->saved_c_extra = wlv->c_extra;
     wlv->saved_c_final = wlv->c_final;
+    wlv->need_lbr = true;
     wlv->saved_char_attr = wlv->char_attr;
 
     wlv->n_extra = 0;
@@ -1171,8 +1141,6 @@ int win_line(win_T *wp, linenr_T lnum, int startrow, int endrow, bool number_onl
   int multispace_pos = 0;               // position in lcs-multispace string
   int line_attr_save;
   int line_attr_lowprio_save;
-  int prev_c = 0;                       // previous Arabic character
-  int prev_c1 = 0;                      // first composing char for prev_c
 
   bool search_attr_from_match = false;  // if search_attr is from :match
   bool has_decor = false;               // this buffer has decoration
@@ -2160,28 +2128,6 @@ int win_line(win_T *wp, linenr_T lnum, int startrow, int endrow, bool number_onl
         }
       } else if (mb_l == 0) {        // at the NUL at end-of-line
         mb_l = 1;
-      } else if (p_arshape && !p_tbidi && ARABIC_CHAR(mb_c)) {
-        // Do Arabic shaping.
-        int pc, pc1, nc;
-        int pcc[MAX_MCO];
-
-        // The idea of what is the previous and next
-        // character depends on 'rightleft'.
-        if (wp->w_p_rl) {
-          pc = prev_c;
-          pc1 = prev_c1;
-          nc = utf_ptr2char(ptr + mb_l);
-          prev_c1 = u8cc[0];
-        } else {
-          pc = utfc_ptr2char(ptr + mb_l, pcc);
-          nc = prev_c;
-          pc1 = pcc[0];
-        }
-        prev_c = mb_c;
-
-        mb_c = arabic_shape(mb_c, &c, &u8cc[0], pc, pc1, nc);
-      } else {
-        prev_c = mb_c;
       }
       // If a double-width char doesn't fit display a '>' in the
       // last column; the character is displayed at the start of the
@@ -2361,9 +2307,19 @@ int win_line(win_T *wp, linenr_T lnum, int startrow, int endrow, bool number_onl
           wlv.char_attr = hl_combine_attr(term_attrs[wlv.vcol], wlv.char_attr);
         }
 
+        // we don't want linebreak to apply for lines that start with
+        // leading spaces, followed by long letters (since it would add
+        // a break at the beginning of a line and this might be unexpected)
+        //
+        // So only allow to linebreak, once we have found chars not in
+        // 'breakat' in the line.
+        if (wp->w_p_lbr && !wlv.need_lbr && c != NUL
+            && !vim_isbreak((uint8_t)(*ptr))) {
+          wlv.need_lbr = true;
+        }
         // Found last space before word: check for line break.
-        if (wp->w_p_lbr && c0 == c && vim_isbreak(c)
-            && !vim_isbreak((int)(*ptr))) {
+        if (wp->w_p_lbr && c0 == c && wlv.need_lbr
+            && vim_isbreak(c) && !vim_isbreak((uint8_t)(*ptr))) {
           int mb_off = utf_head_off(line, ptr - 1);
           char *p = ptr - (mb_off + 1);
           chartabsize_T cts;

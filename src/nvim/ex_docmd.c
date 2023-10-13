@@ -1630,7 +1630,7 @@ static int execute_cmd0(int *retv, exarg_T *eap, const char **errormsg, bool pre
     // Call the function to execute the builtin command or the preview callback.
     eap->errmsg = NULL;
     if (preview) {
-      *retv = (cmdnames[eap->cmdidx].cmd_preview_func)(eap, (int)cmdpreview_get_ns(),
+      *retv = (cmdnames[eap->cmdidx].cmd_preview_func)(eap, cmdpreview_get_ns(),
                                                        cmdpreview_get_bufnr());
     } else {
       (cmdnames[eap->cmdidx].cmd_func)(eap);
@@ -3142,9 +3142,6 @@ void f_fullcommand(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
 
   rettv->v_type = VAR_STRING;
   rettv->vval.v_string = NULL;
-  if (name == NULL) {
-    return;
-  }
 
   while (*name == ':') {
     name++;
@@ -7355,6 +7352,12 @@ static void ex_terminal(exarg_T *eap)
   }
 
   do_cmdline_cmd(ex_cmd);
+}
+
+/// ":fclose"
+static void ex_fclose(exarg_T *eap)
+{
+  win_float_remove(eap->forceit, eap->line1);
 }
 
 void verify_command(char *cmd)

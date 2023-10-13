@@ -526,7 +526,7 @@ buf_T *get_buf_arg(typval_T *arg)
 /// "byte2line(byte)" function
 static void f_byte2line(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
 {
-  long boff = (long)tv_get_number(&argvars[0]) - 1;
+  int boff = (int)tv_get_number(&argvars[0]) - 1;
   if (boff < 0) {
     rettv->vval.v_number = -1;
   } else {
@@ -4990,9 +4990,10 @@ static int msgpackparse_convert_item(const msgpack_object data, const msgpack_un
     tv_list_append_owned_tv(ret_list, tv);
     return OK;
   }
-  default:
+  case MSGPACK_UNPACK_EXTRA_BYTES:
     abort();
   }
+  UNREACHABLE;
 }
 
 static void msgpackparse_unpack_list(const list_T *const list, list_T *const ret_list)
@@ -8708,8 +8709,7 @@ static void f_timer_start(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
   if (!callback_from_typval(&callback, &argvars[1])) {
     return;
   }
-  rettv->vval.v_number = (varnumber_T)timer_start((const long)tv_get_number(&argvars[0]), repeat,
-                                                  &callback);
+  rettv->vval.v_number = (varnumber_T)timer_start(tv_get_number(&argvars[0]), repeat, &callback);
 }
 
 /// "timer_stop(timerid)" function

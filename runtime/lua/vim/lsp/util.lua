@@ -1100,13 +1100,14 @@ function M.make_floating_popup_options(width, height, opts)
     anchor_below = lines_below > lines_above
   end
 
+  local border_height = get_border_size(opts).height
   if anchor_below then
     anchor = anchor .. 'N'
-    height = math.min(lines_below, height)
+    height = math.max(math.min(lines_below - border_height, height), 0)
     row = 1
   else
     anchor = anchor .. 'S'
-    height = math.min(lines_above, height)
+    height = math.max(math.min(lines_above - border_height, height), 0)
     row = 0
   end
 
@@ -1646,7 +1647,7 @@ function M._make_floating_popup_size(contents, opts)
     width = 0
     for i, line in ipairs(contents) do
       -- TODO(ashkan) use nvim_strdisplaywidth if/when that is introduced.
-      line_widths[i] = vim.fn.strdisplaywidth(line)
+      line_widths[i] = vim.fn.strdisplaywidth(line:gsub('%z', '\n'))
       width = math.max(line_widths[i], width)
     end
   end
@@ -1675,7 +1676,7 @@ function M._make_floating_popup_size(contents, opts)
       height = 0
       if vim.tbl_isempty(line_widths) then
         for _, line in ipairs(contents) do
-          local line_width = vim.fn.strdisplaywidth(line)
+          local line_width = vim.fn.strdisplaywidth(line:gsub('%z', '\n'))
           height = height + math.ceil(line_width / wrap_at)
         end
       else

@@ -738,9 +738,8 @@ int win_get_bordertext_col(int total_col, int text_width, AlignTextPos align)
     return (total_col - text_width) / 2 + 1;
   case kAlignRight:
     return total_col - text_width + 1;
-  default:
-    abort();
   }
+  UNREACHABLE;
 }
 
 static void win_redr_border(win_T *wp)
@@ -1647,11 +1646,11 @@ static void win_update(win_T *wp, DecorProviders *providers)
   // When only displaying the lines at the top, set top_end.  Used when
   // window has scrolled down for msg_scrolled.
   if (type == UPD_REDRAW_TOP) {
-    long j = 0;
+    int j = 0;
     for (int i = 0; i < wp->w_lines_valid; i++) {
       j += wp->w_lines[i].wl_size;
       if (j >= wp->w_upd_rows) {
-        top_end = (int)j;
+        top_end = j;
         break;
       }
     }
@@ -1684,7 +1683,7 @@ static void win_update(win_T *wp, DecorProviders *providers)
                    || (wp->w_topline == wp->w_lines[0].wl_lnum
                        && wp->w_topfill > wp->w_old_topfill))) {
       // New topline is above old topline: May scroll down.
-      long j;
+      int j;
       if (hasAnyFolding(wp)) {
         linenr_T ln;
 
@@ -1744,7 +1743,7 @@ static void win_update(win_T *wp, DecorProviders *providers)
       // needs updating.
 
       // try to find wp->w_topline in wp->w_lines[].wl_lnum
-      long j = -1;
+      int j = -1;
       int row = 0;
       for (int i = 0; i < wp->w_lines_valid; i++) {
         if (wp->w_lines[i].wl_valid
@@ -2151,7 +2150,7 @@ static void win_update(win_T *wp, DecorProviders *providers)
           int new_rows = 0;
           // Able to count old number of rows: Count new window
           // rows, and may insert/delete lines
-          long j = idx;
+          int j = idx;
           for (l = lnum; l < mod_bot; l++) {
             if (hasFoldingWin(wp, l, NULL, &l, true, NULL)) {
               new_rows++;
@@ -2212,14 +2211,14 @@ static void win_update(win_T *wp, DecorProviders *providers)
               while (true) {
                 // stop at last valid entry in w_lines[]
                 if (i >= wp->w_lines_valid) {
-                  wp->w_lines_valid = (int)j;
+                  wp->w_lines_valid = j;
                   break;
                 }
                 wp->w_lines[j] = wp->w_lines[i];
                 // stop at a line that won't fit
                 if (x + (int)wp->w_lines[j].wl_size
                     > wp->w_grid.rows) {
-                  wp->w_lines_valid = (int)j + 1;
+                  wp->w_lines_valid = j + 1;
                   break;
                 }
                 x += wp->w_lines[j++].wl_size;
@@ -2391,10 +2390,10 @@ static void win_update(win_T *wp, DecorProviders *providers)
       wp->w_botline = lnum;
     } else if (dy_flags & DY_LASTLINE) {      // 'display' has "lastline"
       // Last line isn't finished: Display "@@@" at the end.
-      // TODO(bfredl): this display ">@@@" when ">" was a left-halve
-      // maybe "@@@@" is preferred when this happens.
+      // If this would split a doublewidth char in two, we need to display "@@@@" instead
       grid_line_start(&wp->w_grid, wp->w_grid.rows - 1);
-      grid_line_fill(MAX(wp->w_grid.cols - 3, 0), wp->w_grid.cols,
+      int width = grid_line_getchar(MAX(wp->w_grid.cols - 3, 0), NULL) == NUL ? 4 : 3;
+      grid_line_fill(MAX(wp->w_grid.cols - width, 0), wp->w_grid.cols,
                      wp->w_p_fcs_chars.lastline, at_attr);
       grid_line_flush();
       set_empty_rows(wp, srow);
@@ -2407,7 +2406,7 @@ static void win_update(win_T *wp, DecorProviders *providers)
   } else {
     if (eof) {  // we hit the end of the file
       wp->w_botline = buf->b_ml.ml_line_count + 1;
-      long j = win_get_fill(wp, wp->w_botline);
+      int j = win_get_fill(wp, wp->w_botline);
       if (j > 0 && !wp->w_botfill && row < wp->w_grid.rows) {
         // Display filler text below last line. win_line() will check
         // for ml_line_count+1 and only draw filler lines
