@@ -247,7 +247,7 @@ void update_topline(win_T *wp)
   int old_topfill = wp->w_topfill;
 
   // If the buffer is empty, always set topline to 1.
-  if (buf_is_empty(curbuf)) {             // special case - file is empty
+  if (buf_is_empty(wp->w_buffer)) {  // special case - file is empty
     if (wp->w_topline != 1) {
       redraw_later(wp, UPD_NOT_VALID);
     }
@@ -1119,8 +1119,8 @@ void f_screenpos(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
   }
 
   pos_T pos = {
-    .lnum   = (linenr_T)tv_get_number(&argvars[1]),
-    .col    = (colnr_T)tv_get_number(&argvars[2]) - 1,
+    .lnum = (linenr_T)tv_get_number(&argvars[1]),
+    .col = (colnr_T)tv_get_number(&argvars[2]) - 1,
     .coladd = 0
   };
   if (pos.lnum > wp->w_buffer->b_ml.ml_line_count) {
@@ -1142,13 +1142,17 @@ void f_screenpos(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
 /// returned.
 static int virtcol2col(win_T *wp, linenr_T lnum, int vcol)
 {
-  int offset = vcol2col(wp, lnum, vcol);
+  int offset = vcol2col(wp, lnum, vcol - 1, NULL);
   char *line = ml_get_buf(wp->w_buffer, lnum);
   char *p = line + offset;
 
-  // For a multibyte character, need to return the column number of the first byte.
-  MB_PTR_BACK(line, p);
-
+  if (*p == NUL) {
+    if (p == line) {  // empty line
+      return 0;
+    }
+    // Move to the first byte of the last char.
+    MB_PTR_BACK(line, p);
+  }
   return (int)(p - line + 1);
 }
 
@@ -2690,9 +2694,9 @@ void do_check_cursorbind(void)
   prev_curwin = curwin;
   prev_cursor = curwin->w_cursor;
 
-  linenr_T line    = curwin->w_cursor.lnum;
-  colnr_T col      = curwin->w_cursor.col;
-  colnr_T coladd   = curwin->w_cursor.coladd;
+  linenr_T line = curwin->w_cursor.lnum;
+  colnr_T col = curwin->w_cursor.col;
+  colnr_T coladd = curwin->w_cursor.coladd;
   colnr_T curswant = curwin->w_curswant;
   int set_curswant = curwin->w_set_curswant;
   win_T *old_curwin = curwin;

@@ -2929,7 +2929,16 @@ it(':substitute with inccommand, allows :redraw before first separator is typed 
   meths.open_win(float_buf, false, {
     relative = 'editor', height = 1, width = 5, row = 3, col = 0, focusable = false,
   })
-  feed(':%s')
+  feed(':')
+  screen:expect([[
+    foo bar baz                   |
+    bar baz fox                   |
+    bar foo baz                   |
+    {16:     }{15:                         }|
+    {15:~                             }|
+    :^                             |
+  ]])
+  feed('%s')
   screen:expect([[
     foo bar baz                   |
     bar baz fox                   |
@@ -3084,6 +3093,36 @@ it(':substitute with inccommand works properly if undo is not synced #20029', fu
     foo
     bar
     baz]])
+end)
+
+it(':substitute with inccommand does not unexpectedly change viewport #25697', function()
+  clear()
+  local screen = Screen.new(45, 5)
+  common_setup(screen, 'nosplit', long_multiline_text)
+  command('vnew | tabnew | tabclose')
+  screen:expect([[
+    ^                      │£ m n                 |
+    {15:~                     }│t œ ¥                 |
+    {15:~                     }│                      |
+    {11:[No Name]              }{10:[No Name] [+]         }|
+                                                 |
+  ]])
+  feed(':s/')
+  screen:expect([[
+                          │£ m n                 |
+    {15:~                     }│t œ ¥                 |
+    {15:~                     }│                      |
+    {11:[No Name]              }{10:[No Name] [+]         }|
+    :s/^                                          |
+  ]])
+  feed('<Esc>')
+  screen:expect([[
+    ^                      │£ m n                 |
+    {15:~                     }│t œ ¥                 |
+    {15:~                     }│                      |
+    {11:[No Name]              }{10:[No Name] [+]         }|
+                                                 |
+  ]])
 end)
 
 it('long :%s/ with inccommand does not collapse cmdline', function()

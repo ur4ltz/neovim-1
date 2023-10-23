@@ -2,6 +2,7 @@
 
 local util = require('vim.lsp.util')
 local protocol = require('vim.lsp.protocol')
+local log = require('vim.lsp.log')
 local ms = protocol.Methods
 
 local api = vim.api
@@ -88,10 +89,7 @@ local function tags_lsp_to_vim(diagnostic, client_id)
       tags = tags or {}
       tags.deprecated = true
     else
-      vim.notify_once(
-        string.format('Unknown DiagnosticTag %d from LSP client %d', tag, client_id),
-        vim.log.levels.WARN
-      )
+      log.info(string.format('Unknown DiagnosticTag %d from LSP client %d', tag, client_id))
     end
   end
   return tags
@@ -159,44 +157,45 @@ local function diagnostic_vim_to_lsp(diagnostics)
   end, diagnostics)
 end
 
----@type table<integer,integer>
+---@type table<integer, integer>
 local _client_push_namespaces = {}
----@type table<integer,integer>
+
+---@type table<string, integer>
 local _client_pull_namespaces = {}
 
 --- Get the diagnostic namespace associated with an LSP client |vim.diagnostic| for diagnostics
 ---
 ---@param client_id integer The id of the LSP client
----@param is_pull boolean Whether the namespace is for a pull or push client
+---@param is_pull boolean? Whether the namespace is for a pull or push client. Defaults to push
 function M.get_namespace(client_id, is_pull)
   vim.validate({ client_id = { client_id, 'n' } })
 
-  local namespace_table
-  local key
-  local name
   local client = vim.lsp.get_client_by_id(client_id)
-
   if is_pull then
-    namespace_table = _client_pull_namespaces
-    local server_id = vim.tbl_get(client.server_capabilities, 'diagnosticProvider', 'identifier')
-    key = string.format('%d:%s', client_id, server_id or 'nil')
-    name = string.format(
+    local server_id =
+      vim.tbl_get((client or {}).server_capabilities, 'diagnosticProvider', 'identifier')
+    local key = string.format('%d:%s', client_id, server_id or 'nil')
+    local name = string.format(
       'vim.lsp.%s.%d.%s',
       client and client.name or 'unknown',
       client_id,
       server_id or 'nil'
     )
+    local ns = _client_pull_namespaces[key]
+    if not ns then
+      ns = api.nvim_create_namespace(name)
+      _client_pull_namespaces[key] = ns
+    end
+    return ns
   else
-    namespace_table = _client_push_namespaces
-    key = client_id
-    name = string.format('vim.lsp.%s.%d', client and client.name or 'unknown', client_id)
+    local name = string.format('vim.lsp.%s.%d', client and client.name or 'unknown', client_id)
+    local ns = _client_push_namespaces[client_id]
+    if not ns then
+      ns = api.nvim_create_namespace(name)
+      _client_push_namespaces[client_id] = ns
+    end
+    return ns
   end
-
-  if not namespace_table[key] then
-    namespace_table[key] = api.nvim_create_namespace(name)
-  end
-
-  return namespace_table[key]
 end
 
 --- |lsp-handler| for the method "textDocument/publishDiagnostics"

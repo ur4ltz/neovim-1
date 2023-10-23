@@ -118,4 +118,15 @@ struct cleanup_stuff {
   except_T *exception;  ///< exception value
 };
 
+/// Exception state that is saved and restored when calling timer callback
+/// functions and deferred functions.
+typedef struct exception_state_S exception_state_T;
+struct exception_state_S {
+  except_T *estate_current_exception;
+  bool estate_did_throw;
+  bool estate_need_rethrow;
+  int estate_trylevel;
+  int estate_did_emsg;
+};
+
 #endif  // NVIM_EX_EVAL_DEFS_H

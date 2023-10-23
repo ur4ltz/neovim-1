@@ -1744,7 +1744,9 @@ static void write_msg(String message, bool to_err, bool writeln)
     } else { \
       msg(line_buf->items, 0); \
     } \
-    msg_didout = true; \
+    if (msg_silent == 0) { \
+      msg_didout = true; \
+    } \
     kv_drop(*line_buf, kv_size(*line_buf)); \
     kv_resize(*line_buf, LINE_BUFFER_MIN_SIZE); \
   } else if (c == NUL) { \
@@ -2195,8 +2197,8 @@ Dictionary nvim_eval_statusline(String str, Dict(eval_statusline) *opts, Error *
     }
     if (statuscol_lnum) {
       HlPriId line = { 0 };
-      HlPriId cul  = { 0 };
-      HlPriId num  = { 0 };
+      HlPriId cul = { 0 };
+      HlPriId num = { 0 };
       linenr_T lnum = statuscol_lnum;
       int num_signs = buf_get_signattrs(wp->w_buffer, lnum, sattrs, &num, &line, &cul);
       decor_redraw_signs(wp->w_buffer, lnum - 1, &num_signs, sattrs, &num, &line, &cul);

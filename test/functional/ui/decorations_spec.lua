@@ -1456,6 +1456,24 @@ describe('extmark decorations', function()
     ]]}
   end)
 
+  it('virtual text win_col out of window does not break display #25645', function()
+    screen:try_resize(51, 6)
+    command('vnew')
+    meths.buf_set_lines(0, 0, -1, false, { string.rep('a', 50) })
+    screen:expect{grid=[[
+      ^aaaaaaaaaaaaaaaaaaaaaaaaa│                         |
+      aaaaaaaaaaaaaaaaaaaaaaaaa│{1:~                        }|
+      {1:~                        }│{1:~                        }|
+      {1:~                        }│{1:~                        }|
+      {41:[No Name] [+]             }{40:[No Name]                }|
+                                                         |
+    ]]}
+    local extmark_opts = { virt_text_win_col = 35, virt_text = { { ' ', 'Comment' } } }
+    meths.buf_set_extmark(0, ns, 0, 0, extmark_opts)
+    screen:expect_unchanged()
+    assert_alive()
+  end)
+
   it('can have virtual text on folded line', function()
     insert([[
       11111
@@ -1775,30 +1793,36 @@ describe('extmark decorations', function()
     ]])
 
     -- When only one highlight group has an underline attribute, it should always take effect.
-    meths.buf_clear_namespace(0, ns, 0, -1)
-    meths.buf_set_extmark(0, ns, 0, 0, { end_col = 9, hl_group = 'TestUL', priority = 20 })
-    meths.buf_set_extmark(0, ns, 0, 3, { end_col = 6, hl_group = 'TestBold', priority = 30 })
-    screen:expect([[
-      {1:aaa}{5:bbb}{1:aa^a}                                         |
-      {0:~                                                 }|
-                                                        |
-    ]])
-    meths.buf_clear_namespace(0, ns, 0, -1)
-    meths.buf_set_extmark(0, ns, 0, 0, { end_col = 9, hl_group = 'TestUL', priority = 30 })
-    meths.buf_set_extmark(0, ns, 0, 3, { end_col = 6, hl_group = 'TestBold', priority = 20 })
-    screen:expect_unchanged(true)
-    meths.buf_clear_namespace(0, ns, 0, -1)
-    meths.buf_set_extmark(0, ns, 0, 0, { end_col = 9, hl_group = 'TestUC', priority = 20 })
-    meths.buf_set_extmark(0, ns, 0, 3, { end_col = 6, hl_group = 'TestBold', priority = 30 })
-    screen:expect([[
-      {2:aaa}{6:bbb}{2:aa^a}                                         |
-      {0:~                                                 }|
-                                                        |
-    ]])
-    meths.buf_clear_namespace(0, ns, 0, -1)
-    meths.buf_set_extmark(0, ns, 0, 0, { end_col = 9, hl_group = 'TestUC', priority = 30 })
-    meths.buf_set_extmark(0, ns, 0, 3, { end_col = 6, hl_group = 'TestBold', priority = 20 })
-    screen:expect_unchanged(true)
+    for _, d in ipairs({-5, 5}) do
+      meths.buf_clear_namespace(0, ns, 0, -1)
+      screen:expect([[
+        aaabbbaa^a                                         |
+        {0:~                                                 }|
+                                                          |
+      ]])
+      meths.buf_set_extmark(0, ns, 0, 0, { end_col = 9, hl_group = 'TestUL', priority = 25 + d })
+      meths.buf_set_extmark(0, ns, 0, 3, { end_col = 6, hl_group = 'TestBold', priority = 25 - d })
+      screen:expect([[
+        {1:aaa}{5:bbb}{1:aa^a}                                         |
+        {0:~                                                 }|
+                                                          |
+      ]])
+    end
+    for _, d in ipairs({-5, 5}) do
+      meths.buf_clear_namespace(0, ns, 0, -1)
+      screen:expect([[
+        aaabbbaa^a                                         |
+        {0:~                                                 }|
+                                                          |
+      ]])
+      meths.buf_set_extmark(0, ns, 0, 0, { end_col = 9, hl_group = 'TestUC', priority = 25 + d })
+      meths.buf_set_extmark(0, ns, 0, 3, { end_col = 6, hl_group = 'TestBold', priority = 25 - d })
+      screen:expect([[
+        {2:aaa}{6:bbb}{2:aa^a}                                         |
+        {0:~                                                 }|
+                                                          |
+      ]])
+    end
   end)
 
   it('highlight is combined with syntax and sign linehl #20004', function()

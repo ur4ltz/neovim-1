@@ -1370,6 +1370,7 @@ return {
         	|i_CTRL-X_CTRL-D|
         ]	tag completion
         t	same as "]"
+        f	scan the buffer names (as opposed to buffer contents)
 
         Unloaded buffers are not loaded, thus their autocmds |:autocmd| are
         not executed, this may lead to unexpected completions from some files
@@ -3970,8 +3971,9 @@ return {
       cb = 'did_set_ignorecase',
       defaults = { if_true = false },
       desc = [=[
-        Ignore case in search patterns, completion, and when searching the tags file.
-        See also 'smartcase' and 'tagcase'.
+        Ignore case in search patterns, |cmdline-completion|, when
+        searching in the tags file, and |expr-==|.
+        Also see 'smartcase' and 'tagcase'.
         Can be overruled by using "\c" or "\C" in the pattern, see
         |/ignorecase|.
       ]=],
@@ -5153,6 +5155,7 @@ return {
         Increasing this limit above 200 also changes the maximum for Ex
         command recursion, see |E169|.
         See also |:function|.
+        Also used for maximum depth of callback functions.
       ]=],
       full_name = 'maxfuncdepth',
       scope = { 'global' },
@@ -6822,6 +6825,7 @@ return {
     },
     {
       abbreviation = 'sd',
+      cb = 'did_set_shada',
       defaults = {
         if_true = "!,'100,<50,s10,h",
         doc = [[for
@@ -9470,6 +9474,7 @@ return {
     },
     {
       abbreviation = 'wc',
+      cb = 'did_set_wildchar',
       defaults = {
         if_true = imacros('TAB'),
         doc = '<Tab>',
@@ -9481,6 +9486,8 @@ return {
         The character is not recognized when used inside a macro.  See
         'wildcharm' for that.
         Some keys will not work, such as CTRL-C, <CR> and Enter.
+        <Esc> can be used, but hitting it twice in a row will still exit
+        command-line as a failsafe measure.
         Although 'wc' is a number option, you can set it to a special key: >
         	:set wc=<Tab>
         <
@@ -9493,6 +9500,7 @@ return {
     },
     {
       abbreviation = 'wcm',
+      cb = 'did_set_wildchar',
       defaults = { if_true = 0 },
       desc = [=[
         'wildcharm' works exactly like 'wildchar', except that it is
@@ -9568,18 +9576,21 @@ return {
         a completion.
 
         While the menu is active these keys have special meanings:
-
-        CTRL-Y		- accept the currently selected match and stop
-        		  completion.
-        CTRL-E		- end completion, go back to what was there before
-        		  selecting a match.
+        CTRL-P		- go to the previous entry
+        CTRL-N		- go to the next entry
         <Left> <Right>	- select previous/next match (like CTRL-P/CTRL-N)
+        <PageUp>	- select a match several entries back
+        <PageDown>	- select a match several entries further
+        <Up>		- in filename/menu name completion: move up into
+        		  parent directory or parent menu.
         <Down>		- in filename/menu name completion: move into a
         		  subdirectory or submenu.
         <CR>		- in menu completion, when the cursor is just after a
         		  dot: move into a submenu.
-        <Up>		- in filename/menu name completion: move up into
-        		  parent directory or parent menu.
+        CTRL-E		- end completion, go back to what was there before
+        		  selecting a match.
+        CTRL-Y		- accept the currently selected match and stop
+        		  completion.
 
         If you want <Left> and <Right> to move the cursor instead of selecting
         a different match, use this: >

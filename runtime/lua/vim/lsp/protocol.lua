@@ -242,6 +242,7 @@ local constants = {
 
   -- Defines whether the insert text in a completion item should be interpreted as
   -- plain text or a snippet.
+  --- @enum lsp.InsertTextFormat
   InsertTextFormat = {
     -- The primary text to be inserted is treated as a plain string.
     PlainText = 1,
@@ -742,7 +743,6 @@ function protocol.make_client_capabilities()
           -- this should be disabled out of the box.
           -- However, users can turn this back on if they have a snippet plugin.
           snippetSupport = false,
-
           commitCharactersSupport = false,
           preselectSupport = false,
           deprecatedSupport = false,

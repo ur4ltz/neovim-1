@@ -1346,7 +1346,9 @@ void do_shell(char *cmd, int flags)
   // 1" command to the terminal.
   ui_cursor_goto(msg_row, msg_col);
   (void)call_shell(cmd, (ShellOpts)flags, NULL);
-  msg_didout = true;
+  if (msg_silent == 0) {
+    msg_didout = true;
+  }
   did_check_timestamps = false;
   need_check_timestamps = true;
 
@@ -3339,7 +3341,7 @@ static int do_sub(exarg_T *eap, const proftime_T timeout, const int cmdpreview_n
   int which_pat;
   char *cmd = eap->arg;
   linenr_T first_line = 0;  // first changed line
-  linenr_T last_line= 0;    // below last changed line AFTER the change
+  linenr_T last_line = 0;    // below last changed line AFTER the change
   linenr_T old_line_count = curbuf->b_ml.ml_line_count;
   char *sub_firstline;    // allocated copy of first sub line
   bool endcolumn = false;   // cursor in last column when done
@@ -3599,7 +3601,7 @@ static int do_sub(exarg_T *eap, const proftime_T timeout, const int cmdpreview_n
       while (true) {
         SubResult current_match = {
           .start = { 0, 0 },
-          .end   = { 0, 0 },
+          .end = { 0, 0 },
           .pre_match = 0,
         };
         // lnum is where the match start, but maybe not the pattern match,
@@ -3903,7 +3905,7 @@ static int do_sub(exarg_T *eap, const proftime_T timeout, const int cmdpreview_n
           if (current_match.end.lnum == 0) {
             current_match.end.lnum = sub_firstlnum + (linenr_T)nmatch - 1;
           }
-          current_match.end.col  = regmatch.endpos[0].col;
+          current_match.end.col = regmatch.endpos[0].col;
 
           ADJUST_SUB_FIRSTLNUM();
           lnum += (linenr_T)nmatch - 1;
@@ -4634,7 +4636,7 @@ static int show_sub(exarg_T *eap, pos_T old_cusr, PreviewLines *preview_lines, i
 
     if (cmdpreview_buf) {
       lpos_T p_start = { 0, match.start.col };  // match starts here in preview
-      lpos_T p_end   = { 0, match.end.col };    // ... and ends here
+      lpos_T p_end = { 0, match.end.col };    // ... and ends here
 
       // You Might Gonna Need It
       buf_ensure_loaded(cmdpreview_buf);

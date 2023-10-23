@@ -2237,7 +2237,7 @@ int pattern_match(const char *pat, const char *text, bool ic)
 
   // avoid 'l' flag in 'cpoptions'
   char *save_cpo = p_cpo;
-  p_cpo = empty_option;
+  p_cpo = empty_string_option;
   regmatch.regprog = vim_regcomp(pat, RE_MAGIC + RE_STRING);
   if (regmatch.regprog != NULL) {
     regmatch.rm_ic = ic;
@@ -6064,6 +6064,11 @@ bool callback_call(Callback *const callback, const int argcount_in, typval_T *co
                    typval_T *const rettv)
   FUNC_ATTR_NONNULL_ALL
 {
+  if (callback_depth > p_mfd) {
+    emsg(_(e_command_too_recursive));
+    return false;
+  }
+
   partial_T *partial;
   char *name;
   Array args = ARRAY_DICT_INIT;
@@ -7219,6 +7224,17 @@ void set_vim_var_dict(const VimVarIndex idx, dict_T *const val)
   val->dv_refcount++;
   // Set readonly
   tv_dict_set_keys_readonly(val);
+}
+
+/// Set v:variable to tv.
+///
+/// @param[in]  idx  Index of variable to set.
+/// @param[in,out]  val  Value to set to. Reference count will be incremented.
+///                      Also keys of the dictionary will be made read-only.
+void set_vim_var_tv(const VimVarIndex idx, typval_T *const tv)
+{
+  tv_clear(&vimvars[idx].vv_di.di_tv);
+  vimvars[idx].vv_di.di_tv = *tv;
 }
 
 /// Set the v:argv list.
@@ -8629,7 +8645,7 @@ char *do_string_sub(char *str, char *pat, char *sub, typval_T *expr, const char 
 
   // Make 'cpoptions' empty, so that the 'l' flag doesn't work here
   char *save_cpo = p_cpo;
-  p_cpo = empty_option;
+  p_cpo = empty_string_option;
 
   ga_init(&ga, 1, 200);
 
@@ -8694,7 +8710,7 @@ char *do_string_sub(char *str, char *pat, char *sub, typval_T *expr, const char 
 
   char *ret = xstrdup(ga.ga_data == NULL ? str : ga.ga_data);
   ga_clear(&ga);
-  if (p_cpo == empty_option) {
+  if (p_cpo == empty_string_option) {
     p_cpo = save_cpo;
   } else {
     // Darn, evaluating {sub} expression or {expr} changed the value.
